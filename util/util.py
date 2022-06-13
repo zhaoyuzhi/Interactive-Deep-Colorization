@@ -193,8 +193,8 @@ def get_colorization_data(data_raw, opt, ab_thresh=5., p=.125, num_points=None):
     data = {}
 
     data_lab = rgb2lab(data_raw[0], opt)
-    data['A'] = data_lab[:,[0,],:,:]
-    data['B'] = data_lab[:,1:,:,:]
+    data['A'] = data_lab[:,[0,],:,:]    # L component
+    data['B'] = data_lab[:,1:,:,:]      # ab components
 
     if(ab_thresh > 0): # mask out grayscale images
         thresh = 1.*ab_thresh/opt.ab_norm
@@ -258,6 +258,52 @@ def add_color_patches_rand_gt(data,opt,p=.125,num_points=None,use_avg=True,samp=
 
     return data
 
+def get_colorization_data_given_scribble(data_raw, scrib_raw, valid_scribble_position, opt, ab_thresh=5., p=.125, num_points=None):
+    data = {}
+
+    data_lab = rgb2lab(data_raw, opt)
+    data['A'] = data_lab[:,[0,],:,:]            # L component
+    data['B'] = data_lab[:,1:,:,:]              # ab components
+    
+    scrib_lab = rgb2lab(scrib_raw, opt)
+    data['scrib_B'] = scrib_lab[:,1:,:,:]       # ab components
+    data['valid_scrib_B'] = valid_scribble_position
+    
+    if(ab_thresh > 0): # mask out grayscale images
+        thresh = 1.*ab_thresh/opt.ab_norm
+        mask = torch.sum(torch.abs(torch.max(torch.max(data['B'],dim=3)[0],dim=2)[0]-torch.min(torch.min(data['B'],dim=3)[0],dim=2)[0]),dim=1) >= thresh
+        data['A'] = data['A'][mask,:,:,:]
+        data['B'] = data['B'][mask,:,:,:]
+        # print('Removed %i points'%torch.sum(mask==0).numpy())
+        if(torch.sum(mask)==0):
+            return None
+
+    return add_color_patches_rand_gt_given_scribble(data, opt, p=p, num_points=num_points)
+
+def add_color_patches_rand_gt_given_scribble(data,opt,p=.125,num_points=None,use_avg=True,samp='normal'):
+# Add random color points sampled from ground truth based on:
+#   Number of points
+#   - if num_points is 0, then sample from geometric distribution, drawn from probability p
+#   - if num_points > 0, then sample that number of points
+#   Location of points
+#   - if samp is 'normal', draw from N(0.5, 0.25) of image
+#   - otherwise, draw from U[0, 1] of image
+    N,C,H,W = data['scrib_B'].shape
+
+    #data['hint_B'] = torch.zeros_like(data['B'])
+    #data['mask_B'] = torch.zeros_like(data['A'])
+
+    data['hint_B'] = data['scrib_B']
+    data['mask_B'] = data['valid_scrib_B']
+
+    '''
+    savetest = torch.cat((data['A'], data['hint_B']), 1)
+    im = tensor2im(savetest)
+    save_image(im, 't.png')
+    '''
+
+    return data
+
 def add_color_patch(data,mask,opt,P=1,hw=[128,128],ab=[0,0]):
     # Add a color patch at (h,w) with color (a,b)
     data[:,0,hw[0]:hw[0]+P,hw[1]:hw[1]+P] = 1.*ab[0]/opt.ab_norm
@@ -266,7 +312,7 @@ def add_color_patch(data,mask,opt,P=1,hw=[128,128],ab=[0,0]):
 
     return (data,mask)
 
-def crop_mult(data,mult=16,HWmax=[800,1200]):
+def crop_mult(data, mult=16, HWmax=[800,1200]):
     # crop image to a multiple
     H,W = data.shape[2:]
     Hnew = int(min(H/mult*mult,HWmax[0]))
@@ -350,3 +396,52 @@ def calculate_psnr_torch(img1, img2):
     SE_map = (1.*img1-img2)**2
     cur_MSE = torch.mean(SE_map)
     return 20*torch.log10(1./torch.sqrt(cur_MSE))
+
+# ----------------------------------------
+#             Path processing
+# ----------------------------------------
+def text_readlines(filename):
+    # Try to read a txt file and return a list.Return [] if there was a mistake.
+    try:
+        file = open(filename, 'r')
+    except IOError:
+        error = []
+        return error
+    content = file.readlines()
+    # This for loop deletes the EOF (like \n)
+    for i in range(len(content)):
+        content[i] = content[i][:len(content[i])-1]
+    file.close()
+    return content
+
+def savetxt(name, loss_log):
+    np_loss_log = np.array(loss_log)
+    np.savetxt(name, np_loss_log)
+
+def get_files(path):
+    # read a folder, return the complete path
+    ret = []
+    for root, dirs, files in os.walk(path):
+        for filespath in files:
+            ret.append(os.path.join(root, filespath))
+    return ret
+
+def get_jpgs(path):
+    # read a folder, return the image name
+    ret = []
+    for root, dirs, files in os.walk(path):
+        for filespath in files:
+            ret.append(filespath)
+    return ret
+
+def text_save(content, filename, mode = 'a'):
+    # save a list to a txt
+    # Try to save a list variable in txt file.
+    file = open(filename, mode)
+    for i in range(len(content)):
+        file.write(str(content[i]) + '\n')
+    file.close()
+
+def check_path(path):
+    if not os.path.exists(path):
+        os.makedirs(path)

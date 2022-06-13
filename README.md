@@ -1,4 +1,7 @@
 # Interactive Deep Colorization in PyTorch
+
+Forked from https://github.com/richzhang/colorization-pytorch
+
 [Project Page](https://richzhang.github.io/ideepcolor/) |  [Paper](https://arxiv.org/abs/1705.02999) | [Video](https://youtu.be/eL5ilZgM89Q) | [Talk](https://www.youtube.com/watch?v=rp5LUSbdsys) | [UI code](https://github.com/junyanz/interactive-deep-colorization/)
 
 <img src='imgs/demo.gif' width=600>  
@@ -17,6 +20,7 @@ This repository contains training usage. The original, official GitHub repo (wit
 - CPU or NVIDIA GPU + CUDA CuDNN
 
 ## Getting Started
+
 ### Installation
 - Install PyTorch 0.4+ and torchvision from http://pytorch.org and other dependencies (e.g., [visdom](https://github.com/facebookresearch/visdom) and [dominate](https://github.com/Knio/dominate)). You can install all the dependencies by
 ```bash
@@ -24,8 +28,8 @@ pip install -r requirements.txt
 ```
 - Clone this repo:
 ```bash
-git clone https://github.com/richzhang/colorization-pytorch
-cd colorization-pytorch
+git clone https://github.com/zhaoyuzhi/Interactive-Deep-Colorization
+cd Interactive-Deep-Colorization
 ```
 
 ### Dataset preparation
@@ -46,7 +50,6 @@ cd colorization-pytorch
     * `G_fake_hint` is the L1 distance between the predicted color and the input hint color (in locations where a hint is given). It's a measure of how much the network "trusts" the input hint.
     * `G_real_hint` is the L1 distance between the ground truth color and the input hint color (in locations where a hint is given).
 
-
 ### Testing interactive colorization
 - Get a model. Either:
     * (1) download the pretrained model by running ```bash pretrained_models/download_siggraph_model.sh```, which will give you a few models.
@@ -55,7 +58,7 @@ cd colorization-pytorch
     * (2) train your own model (as described in the section above), which will leave a model in `./checkpoints/siggraph_reg2/latest_net_G.pth`
 
 - Test the model on validation data:
-    * ```python test.py --name siggraph_caffemodel --mask_cent 0``` for original caffemodel weights
+    * ```python test.py --name siggraph_caffemodel --mask_cent 0``` for original caffemodel weights (recomended)
     * ```python test.py --name siggraph_retrained ``` for retrained weights.
     * ```python test.py --name siggraph_reg2 ``` if you retrained your own model
     The test results will be saved to an HTML file in `./results/[[NAME]]/latest_val/index.html`. For each image in the validation set, it will test (1) automatic colorization, (2) interactive colorization with a few random hints, and (3) interactive colorization with lots of random hints.
@@ -66,8 +69,56 @@ cd colorization-pytorch
 
 - Test the model interactively with the original official [repository](https://github.com/junyanz/interactive-deep-colorization). Follow installation instructions in that repo and run `python ideepcolor.py --backend pytorch --color_model [[PTH/TO/MODEL]] --dist_model [[PTH/TO/MODEL]]`.
 
+### Testing example
 
-### Citation
+- Create a new folder like this, and then put all the images (in RGB format, not grayscale) into that path (I have already create such folder and put some images into it):
+```bash
+mkdir dataset/ilsvrc2012/val/imgs
+```
+
+- Download pre-trained model and run the testing script
+```bash
+bash pretrained_models/download_siggraph_model.sh
+python test.py --name siggraph_caffemodel --mask_cent 0
+```
+
+- The output images wll be saved in `results/siggraph_caffemodel/val_latest/images`
+
+The related options can be found in `options/base_options` and `options/train_options`
+
+### Testing example (using given color scribbles)
+
+- Create a new folder like this, and then put all the images (in RGB format, not grayscale) into that path (I have already create such folder and put some images into it):
+```bash
+mkdir dataset/ilsvrc2012/val/imgs
+mkdir dataset/ilsvrc2012/val/scribs
+```
+
+- Download pre-trained model and run the testing script
+```bash
+bash pretrained_models/download_siggraph_model.sh
+python test_given_color_scribble.py --name siggraph_caffemodel --mask_cent 0
+```
+
+- The output images wll be saved in `results_given_color_scribble/siggraph_caffemodel/val_latest/images`
+
+The related options can be found in `options/base_options` and `options/train_options`
+
+### Testing on DAVIS and videvo datasets (using given color scribbles)
+
+- Change the input data and color scribble roots in line 72 and line 77 (`opt.dataroot` and `opt.scribbleroot`) of file `test_given_color_scribble_DAVIS_videvo.py`. Change the output root in line 78 (`opt.results_dir`) of file `test_given_color_scribble_DAVIS_videvo.py`
+
+- Download pre-trained model and run the testing script
+```bash
+bash pretrained_models/download_siggraph_model.sh
+python test_given_color_scribble_DAVIS_videvo.py --name siggraph_caffemodel --mask_cent 0
+```
+
+- The output images wll be saved in opt.results_dir
+
+The related options can be found in `options/base_options` and `options/train_options`
+
+## Citation
 If you use this code for your research, please cite our paper:
 ```
 @article{zhang2017real,

@@ -15,7 +15,10 @@ import numpy as np
 
 
 if __name__ == '__main__':
-    sample_ps = [1., .125, .03125]
+
+    # the probability to use color scribbles (actually, negative probability)
+    sample_ps = [1., .125, .03125, 0.001]  # 1: no color scribble; 0.~: use color scribble
+
     to_visualize = ['gray', 'hint', 'hint_ab', 'fake_entr', 'real', 'fake_reg', 'real_ab', 'fake_ab_reg', ]
     S = len(sample_ps)
 
@@ -49,15 +52,22 @@ if __name__ == '__main__':
 
     for i, data_raw in enumerate(dataset_loader):
         data_raw[0] = data_raw[0].cuda()
-        data_raw[0] = util.crop_mult(data_raw[0], mult=8)
+        # this will cause bug, although it exists in the original code
+        #data_raw[0] = util.crop_mult(data_raw[0], mult=8)
 
-        # with no points
         for (pp, sample_p) in enumerate(sample_ps):
-            img_path = [string.replace('%08d_%.3f' % (i, sample_p), '.', 'p')]
-            data = util.get_colorization_data(data_raw, opt, ab_thresh=0., p=sample_p)
+            #img_path = [string.replace('%08d_%.3f' % (i, sample_p), '.', 'p')]
+            #img_path = '%08d_%.3f' % (i, sample_p), '.', 'p'
+            img_path = '%08d_%02d' % (i, pp), '.', 'p'
 
+            # create input data as input for RUIC model
+            data = util.get_colorization_data(data_raw, opt, ab_thresh=0., p=sample_p)
             model.set_input(data)
-            model.test(True)  # True means that losses will be computed
+
+            # forward
+            model.test(True)  # True means that losses will be computed, output is obtained through this step
+
+            # get outputs from RUIC
             visuals = util.get_subset_dict(model.get_current_visuals(), to_visualize)
 
             psnrs[i, pp] = util.calculate_psnr_np(util.tensor2im(visuals['real']), util.tensor2im(visuals['fake_reg']))
@@ -70,6 +80,8 @@ if __name__ == '__main__':
 
         if i == opt.how_many - 1:
             break
+        
+        break
 
     webpage.save()
 
